@@ -3,23 +3,31 @@ package Client;
 import java.io.*;
 import java.net.Socket;
 
-public class TCPServerConnection extends Thread {
+public class TCPCommunicator extends Thread {
     private Socket socket;
-    private ObjectOutputStream output;
-    private volatile ObjectInputStream input;
-    private ConnectionForm connectionForm;
     private BufferedReader RTSPBufferReader;
     private BufferedWriter RTSPBufferWriter;
 
-    public TCPServerConnection(Socket socket, ConnectionForm connectionForm) {
+    public TCPCommunicator(Socket socket) {
         this.socket = socket;
-        this.connectionForm = connectionForm;
     }
+
     public void run() {
         setupStreams();
         receive();
     }
 
+    // Number 1: TCP Socket에서 Input, Output 스트림 생성
+    private void setupStreams() {
+        try {
+            RTSPBufferReader = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
+            RTSPBufferWriter = new BufferedWriter(new OutputStreamWriter(this.socket.getOutputStream()));
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+
+    // Number 2: Server에서 보내는 데이터 계속 읽어서 출력
     private void receive() {
         while (true) {
             try {
@@ -32,15 +40,7 @@ public class TCPServerConnection extends Thread {
         }
     }
 
-    private void setupStreams() {
-        try {
-            RTSPBufferReader = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
-            RTSPBufferWriter = new BufferedWriter(new OutputStreamWriter(this.socket.getOutputStream()));
-        } catch (IOException e) {
-            System.out.println(e);
-        }
-    }
-
+    // Number 3: Server로 테스트 데이터 전송
     public void send() {
         try {
             RTSPBufferWriter.write("TEST");

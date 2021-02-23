@@ -2,21 +2,18 @@ package Client;
 
 import javax.sound.sampled.*;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.*;
 
 public class AudioSenderWorker extends Thread {
-    private AudioFormat audioFormat;
+
     private TargetDataLine targetDataLine;
-    private byte tempAudioBuffer[] = new byte[1024];
-    private DatagramSocket connection;
-    private Client client;
+
+    private DatagramSocket udpSocket;
+
     private InetAddress address;
 
-    public AudioSenderWorker(DatagramSocket connection, Client client, InetAddress address) {
-        this.connection = connection;
-        this.client = client;
+    public AudioSenderWorker(DatagramSocket udpSocket, InetAddress address) {
+        this.udpSocket = udpSocket;
         this.address = address;
     }
 
@@ -27,12 +24,13 @@ public class AudioSenderWorker extends Thread {
     private void sendAudio () {
         try {
 
+            // Number 1: 음성 데이터 읽는 Stream을 여는 것으로 추측됨
             DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, getAudioFormat());
             targetDataLine = (TargetDataLine) AudioSystem.getLine(dataLineInfo);
             targetDataLine.open(getAudioFormat());
             targetDataLine.start();
 
-            // Create buffer to store received bytes
+            // Number 2: 음성 데이터를 읽어서 UDP 통신으로 전송
             byte[] data = new byte[targetDataLine.getBufferSize()];
             while (true) {
 
@@ -40,18 +38,18 @@ public class AudioSenderWorker extends Thread {
                 targetDataLine.read(data, 0, data.length);
                 System.out.println(data.length);
                 // Build packet to send to server
-                DatagramPacket send_packet = new DatagramPacket(data, data.length, address, 54541);
+                DatagramPacket sendPacket = new DatagramPacket(data, data.length, address, 54541);
 
                 // Send to server
-                connection.send(send_packet);
+                udpSocket.send(sendPacket);
             }
         } catch (IOException | LineUnavailableException e) {
             System.out.println(e);
         }
     }
 
+    // Number 3: 음성 데이터 상세 설정을 하는 것으로 추측
     private AudioFormat getAudioFormat() {
-
         float sampleRate = 44100.0F;
         int sampleSizeInBits = 16;
         int channels = 1;

@@ -17,9 +17,14 @@ public class ConnectionForm {
     private InetAddress connectionAddress;
     private Socket connection;
     private JFrame frame;
-    private DatagramSocket udpSocket;
     private volatile Client client;
 
+    // Number 1: 클라이언트 프로그램 시작
+    public static void main(String[] args) {
+        new ConnectionForm();
+    }
+
+    // Number 2: 접속 화면 그리기 및 이벤트 설정
     public ConnectionForm() {
         frame = new JFrame("Connect");
         frame.setContentPane(connectionPanel);
@@ -53,32 +58,25 @@ public class ConnectionForm {
 
     private void connect() {
         try {
-            // Initialize DatagramSocket socket
             connectionAddress = InetAddress.getByName(serverIpText.getText());
 
-            // Init TCP Socket
+            // Number 3: TCP Socket 연결
             connection = new Socket(connectionAddress, 54540);
 
             if (connection.isConnected()) {
 
-                // Create socket for sending
-                udpSocket = new DatagramSocket();
+                // Number 4: UDP Socket 생성
+                DatagramSocket udpSocket = new DatagramSocket();
 
-                // Create receive socket
-                DatagramSocket socketReceive = new DatagramSocket();
+                // Number 5: Client 정보 전송
+                sendClientInfo(udpSocket);
 
-
-                byte[] buf =  ("/newuser/" + usernameText.getText()).getBytes();
-
-                DatagramPacket send_packet = new DatagramPacket(buf, buf.length, connectionAddress, 54541);
-                socketReceive.send(send_packet);
-
-                // Handle server messages thread
-                TCPServerConnection serverConnection = new TCPServerConnection(connection, this);
-                serverConnection.start();
+                // Number 6: TCP 통신으로 들어오는 데이터 계속 출력
+                TCPCommunicator tcpCommunicator = new TCPCommunicator(connection);
+                tcpCommunicator.start();
 
                 System.out.println("Connected to server: " + connection.getInetAddress().getHostAddress() + ":" + connection.getPort());
-                connected(serverConnection, socketReceive);
+                connected(tcpCommunicator, udpSocket);
             }
         } catch (ConnectException e) {
            System.out.println("Unable to connect to server: " + connectionAddress + ":54540");
@@ -88,16 +86,19 @@ public class ConnectionForm {
         }
     }
 
+    private void sendClientInfo(DatagramSocket socketReceive) throws IOException {
+        byte[] buf =  ("/newuser/" + usernameText.getText()).getBytes();
+        DatagramPacket sendPacket = new DatagramPacket(buf, buf.length, connectionAddress, 54541);
+        socketReceive.send(sendPacket);
+    }
 
-    public void connected(TCPServerConnection serverConnection, DatagramSocket socketReceive) {
+
+    // Number 7: 접속 이후 화면 그리기 및 음성 데이터 주고 받기 실행
+    public void connected(TCPCommunicator tcpCommunicator, DatagramSocket udpSocket) {
         // Start client
-        client = new Client(connectionAddress, usernameText.getText(), serverConnection, socketReceive);
+        client = new Client(connectionAddress, usernameText.getText(), tcpCommunicator, udpSocket);
         client.start();
         // Hide connection form
         frame.setVisible(false);
-    }
-
-    public static void main(String[] args) {
-        new ConnectionForm();
     }
 }

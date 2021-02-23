@@ -2,7 +2,6 @@ package Client;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.*;
 import java.net.*;
 import java.awt.*;
 import javax.swing.*;
@@ -14,14 +13,16 @@ public class Client extends JFrame {
 	private DefaultListModel userListModel;
 	private String username;
 	private InetAddress connectionAddress;
-	private TCPServerConnection connection;
-	private DatagramSocket socketReceive;
-	public Client(InetAddress connectionAddress, String username, TCPServerConnection connection, DatagramSocket socketReceive) {
+	private TCPCommunicator tcpCommunicator;
+	private DatagramSocket udpSocket;
+
+	// Number 1: 화면 생성
+	public Client(InetAddress connectionAddress, String username, TCPCommunicator tcpCommunicator, DatagramSocket udpSocket) {
 		super("JavaVoiceTextChatRoom");
-		this.username = username;
-		this.connection = connection;
 		this.connectionAddress = connectionAddress;
-		this.socketReceive = socketReceive;
+		this.username = username;
+		this.tcpCommunicator = tcpCommunicator;
+		this.udpSocket = udpSocket;
 		setupUI();
 	}
 
@@ -48,35 +49,22 @@ public class Client extends JFrame {
 		addListeners();
 	}
 
+	// Number 2: TCP로 테스트 데이터 전송 별로 필요 없음
 	private void addListeners() {
 		userMessage.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				connection.send();
+				tcpCommunicator.send();
 			}
 		});
 	}
 
-
 	public void start() {
-		// Start thread that handles sending audio
-		Thread audioSenderWorker = new AudioSenderWorker(socketReceive, this, connectionAddress);
+		// Number 3: 클라이언트의 음성 데이터를 읽어서 UDP 통신으로 서버로 전송
+		Thread audioSenderWorker = new AudioSenderWorker(udpSocket, connectionAddress);
 		audioSenderWorker.start();
 
 		// Thread to handle receiving UDP packets
-		ClientReceivePackets receivePackets = new ClientReceivePackets(socketReceive, this);
+		ClientReceivePackets receivePackets = new ClientReceivePackets(udpSocket);
 		receivePackets.start();
 	}
-
-	public void showMessage(final String message) {
-		SwingUtilities.invokeLater(
-			() -> userMessages.append(message)
-		);
-	}
-
-	private void fieldEditable(JTextField field, final boolean ableToType) {
-		SwingUtilities.invokeLater(
-			() -> field.setEditable(ableToType)
-		);
-	}
-
 }
